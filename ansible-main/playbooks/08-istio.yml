@@ -1,0 +1,9 @@
+---
+# Install Istio service mesh (skipped if install_istio is false)
+- name: Install Istio
+  hosts: masters
+  tasks:
+    - name: Include Istio role
+      include_role:
+        name: istio
+      when: install_istio | default(false) | bool

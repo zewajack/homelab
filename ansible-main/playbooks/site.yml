@@ -1,0 +1,93 @@
+---
+# Full Kubernetes cluster installation
+# Runs all phases in order: system prep → containerd → k8s packages → master init → worker join → calico → metallb → istio → longhorn
+#
+# Usage:
+#   source ~/ansible-env/bin/activate
+#   cd ansible/
+#   ansible-playbook playbooks/site.yml
+
+# Phase 1: Prepare all nodes
+- name: System preparation
+  hosts: k8s_cluster
+  roles:
+    - system-prep
+    - containerd
+    - k8s-packages
+
+# Phase 2: Initialize master
+- name: Initialize Kubernetes master
+  hosts: masters
+  roles:
+    - k8s-master
+
+# Phase 3: Join workers
+- name: Get join command from master
+  hosts: masters
+  tasks:
+    - name: Refresh join command
+      command: kubeadm token create --print-join-command
+      register: join_command_result
+      changed_when: false
+    - name: Store join command
+      set_fact:
+        kubeadm_join_command: "{{ join_command_result.stdout }}"
+
+- name: Join worker nodes
+  hosts: workers
+  roles:
+    - k8s-worker
+
+- name: Label worker nodes
+  hosts: masters
+  tasks:
+    - name: Get worker node names from cluster
+      shell: kubectl get nodes --no-headers -o custom-columns=NAME:.metadata.name | grep -v "$(hostname)"
+      register: worker_nodes
+      changed_when: false
+
+    - name: Label workers with worker role
+      command: "kubectl label node {{ item }} node-role.kubernetes.io/worker= --overwrite"
+      loop: "{{ worker_nodes.stdout_lines }}"
+      changed_when: false
+
+# Phase 4: Install CNI and networking
+- name: Install Calico CNI
+  hosts: masters
+  tasks:
+    - name: Include Calico role
+      include_role:
+        name: calico
+      when: install_calico | default(true) | bool
+
+- name: Install MetalLB
+  hosts: masters
+  tasks:
+    - name: Include MetalLB role
+      include_role:
+        name: metallb
+      when: install_metallb | default(true) | bool
+
+# Phase 5: Install Istio (optional)
+- name: Install Istio service mesh
+  hosts: masters
+  tasks:
+    - name: Include Istio role
+      include_role:
+        name: istio
+      when: install_istio | default(false) | bool
+
+# Phase 6: Install Longhorn storage (optional)
+- name: Install Longhorn prerequisites
+  hosts: k8s_cluster
+  tasks:
+    - name: Include Longhorn prereqs
+      include_role:
+        name: longhorn
+      when: install_longhorn | default(false) | bool
+
+- name: Install Longhorn via Helm
+  hosts: masters
+  tasks:
+    - include_tasks: ../roles/longhorn/tasks/install.yml
+      when: install_longhorn | default(false) | bool

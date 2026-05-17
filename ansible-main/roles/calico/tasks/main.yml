@@ -1,0 +1,14 @@
+---
+- name: Apply Calico CNI manifest
+  command: kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/calico.yaml
+  register: calico_result
+  changed_when: "'created' in calico_result.stdout or 'configured' in calico_result.stdout"
+
+- name: Wait for Calico pods to be ready
+  shell: |
+    kubectl -n kube-system get pods -l k8s-app=calico-node -o jsonpath='{.items[*].status.phase}' | tr ' ' '\n' | sort -u
+  register: calico_pods
+  retries: 30
+  delay: 10
+  until: calico_pods.stdout == "Running"
+  changed_when: false

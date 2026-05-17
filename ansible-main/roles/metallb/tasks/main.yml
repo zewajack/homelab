@@ -1,0 +1,64 @@
+---
+- name: Apply MetalLB manifest
+  command: kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/{{ metallb_version }}/config/manifests/metallb-native.yaml
+  register: metallb_result
+  changed_when: "'created' in metallb_result.stdout or 'configured' in metallb_result.stdout"
+
+- name: Wait for MetalLB controller to be ready
+  shell: |
+    kubectl -n metallb-system get pods -l app=metallb,component=controller -o jsonpath='{.items[0].status.phase}'
+  register: metallb_controller
+  retries: 30
+  delay: 10
+  until: metallb_controller.stdout == "Running"
+  changed_when: false
+
+- name: Wait for MetalLB webhook to be ready
+  shell: |
+    kubectl -n metallb-system get pods -l component=controller -o jsonpath='{.items[0].status.containerStatuses[0].ready}'
+  register: metallb_webhook
+  retries: 30
+  delay: 10
+  until: metallb_webhook.stdout == "true"
+  changed_when: false
+
+- name: Create MetalLB memberlist secret
+  shell: |
+    kubectl get secret -n metallb-system memberlist 2>/dev/null || \
+    kubectl create secret generic -n metallb-system memberlist \
+      --from-literal=secretkey="$(openssl rand -base64 128)"
+  register: secret_result
+  changed_when: "'created' in secret_result.stdout"
+
+- name: Apply MetalLB IP pool and L2 advertisement
+  copy:
+    content: |
+      apiVersion: metallb.io/v1beta1
+      kind: IPAddressPool
+      metadata:
+        name: default
+        namespace: metallb-system
+      spec:
+        addresses:
+        - {{ metallb_ip_range }}
+      ---
+      apiVersion: metallb.io/v1beta1
+      kind: L2Advertisement
+      metadata:
+        name: default
+        namespace: metallb-system
+    dest: /tmp/metallb-config.yaml
+    mode: '0644'
+
+- name: Apply MetalLB configuration
+  command: kubectl apply -f /tmp/metallb-config.yaml
+  register: metallb_config_result
+  retries: 5
+  delay: 15
+  until: metallb_config_result.rc == 0
+  changed_when: "'created' in metallb_config_result.stdout or 'configured' in metallb_config_result.stdout"
+
+- name: Clean up temp file
+  file:
+    path: /tmp/metallb-config.yaml
+    state: absent

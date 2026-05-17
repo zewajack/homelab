@@ -1,0 +1,6 @@
+---
+# Initialize Kubernetes master
+- name: Initialize master node
+  hosts: masters
+  roles:
+    - k8s-master

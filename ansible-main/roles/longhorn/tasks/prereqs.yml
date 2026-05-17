@@ -1,0 +1,29 @@
+---
+# Prereqs on all nodes (run on k8s_cluster group)
+- name: Load iscsi and nbd kernel modules
+  modprobe:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - iscsi_tcp
+    - nbd
+
+- name: Persist Longhorn kernel modules
+  copy:
+    content: |
+      iscsi_tcp
+      nbd
+    dest: /etc/modules-load.d/longhorn.conf
+    mode: '0644'
+
+- name: Install open-iscsi
+  apt:
+    name: open-iscsi
+    state: present
+    update_cache: yes
+
+- name: Enable and start iscsid
+  systemd:
+    name: iscsid
+    state: started
+    enabled: yes

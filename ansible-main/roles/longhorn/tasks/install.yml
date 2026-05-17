@@ -1,0 +1,55 @@
+---
+# Install Longhorn via Helm (run on master only)
+- name: Install Helm
+  shell: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  args:
+    creates: /usr/local/bin/helm
+
+- name: Add Longhorn Helm repo
+  command: helm repo add longhorn https://charts.longhorn.io
+  register: helm_repo
+  changed_when: "'has been added' in helm_repo.stdout"
+  failed_when: false
+
+- name: Update Helm repos
+  command: helm repo update
+  changed_when: false
+
+- name: Create Longhorn namespace
+  command: kubectl create namespace {{ longhorn_namespace }}
+  register: ns_result
+  changed_when: "'created' in ns_result.stdout"
+  failed_when: "ns_result.rc != 0 and 'already exists' not in ns_result.stderr"
+
+- name: Copy Longhorn values file
+  copy:
+    src: "{{ playbook_dir }}/../roles/longhorn/files/longhorn-values.yaml"
+    dest: /tmp/longhorn-values.yaml
+    mode: '0644'
+
+- name: Check if Longhorn is already installed
+  command: helm status longhorn -n {{ longhorn_namespace }}
+  register: longhorn_status
+  failed_when: false
+  changed_when: false
+
+- name: Install Longhorn via Helm
+  command: >
+    helm install longhorn longhorn/longhorn
+    -n {{ longhorn_namespace }}
+    -f /tmp/longhorn-values.yaml
+  when: longhorn_status.rc != 0
+
+- name: Wait for Longhorn manager pods to be ready
+  shell: |
+    kubectl -n {{ longhorn_namespace }} get pods -l app=longhorn-manager -o jsonpath='{range .items[*]}{.status.phase}{"\n"}{end}' | sort -u
+  register: longhorn_pods
+  retries: 30
+  delay: 15
+  until: longhorn_pods.stdout == "Running"
+  changed_when: false
+
+- name: Clean up temp file
+  file:
+    path: /tmp/longhorn-values.yaml
+    state: absent

@@ -1,0 +1,6 @@
+---
+# Install and configure containerd on all nodes
+- name: Install containerd
+  hosts: k8s_cluster
+  roles:
+    - containerd

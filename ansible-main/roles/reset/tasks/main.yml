@@ -1,0 +1,72 @@
+---
+- name: Reset kubeadm
+  command: kubeadm reset -f
+  ignore_errors: yes
+
+- name: Stop kubelet
+  systemd:
+    name: kubelet
+    state: stopped
+  ignore_errors: yes
+
+- name: Stop containerd to release sandbox mounts
+  systemd:
+    name: containerd
+    state: stopped
+  ignore_errors: yes
+
+- name: Unmount all containerd sandbox mounts
+  shell: |
+    umount -f /run/containerd/io.containerd.grpc.v1.cri/sandboxes/*/shm 2>/dev/null || true
+    umount -f /run/containerd/io.containerd.runtime.v2.task/k8s.io/*/rootfs 2>/dev/null || true
+  changed_when: false
+
+- name: Remove containerd state for k8s pods
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /run/containerd/io.containerd.grpc.v1.cri
+    - /run/containerd/io.containerd.runtime.v2.task/k8s.io
+    - /var/lib/containerd/io.containerd.grpc.v1.cri
+
+- name: Remove Kubernetes config directories
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/kubernetes
+    - /var/lib/kubelet
+    - /var/lib/etcd
+    - /root/.kube
+
+- name: Remove CNI config and state
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/cni/net.d
+    - /var/lib/cni
+    - /var/lib/calico
+
+- name: Flush iptables
+  shell: |
+    iptables -F
+    iptables -t nat -F
+    iptables -t mangle -F
+    iptables -X
+    ip6tables -F
+    ip6tables -t nat -F
+    ip6tables -t mangle -F
+    ip6tables -X
+  ignore_errors: yes
+
+- name: Remove IPVS rules
+  command: ipvsadm --clear
+  ignore_errors: yes
+
+- name: Start containerd clean
+  systemd:
+    name: containerd
+    state: started
+    enabled: yes

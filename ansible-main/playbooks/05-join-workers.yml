@@ -1,0 +1,28 @@
+---
+# Join worker nodes to the cluster
+# Must run after 04-init-master.yml (needs join command from master)
+
+- name: Get join command from master
+  hosts: masters
+  tasks:
+    - name: Generate join command
+      command: kubeadm token create --print-join-command
+      register: join_command_result
+      changed_when: false
+
+    - name: Store join command
+      set_fact:
+        kubeadm_join_command: "{{ join_command_result.stdout }}"
+
+- name: Join worker nodes
+  hosts: workers
+  roles:
+    - k8s-worker
+
+- name: Label worker nodes
+  hosts: masters
+  tasks:
+    - name: Label workers with worker role
+      command: "kubectl label node {{ item }} node-role.kubernetes.io/worker= --overwrite"
+      loop: "{{ groups['workers'] }}"
+      changed_when: false

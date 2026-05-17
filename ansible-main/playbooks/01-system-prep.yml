@@ -1,0 +1,6 @@
+---
+# System preparation on all nodes
+- name: Prepare all nodes for Kubernetes
+  hosts: k8s_cluster
+  roles:
+    - system-prep

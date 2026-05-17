@@ -1,0 +1,49 @@
+---
+- name: Pull kubeadm images
+  command: kubeadm config images pull
+  changed_when: false
+
+- name: Check if cluster is already initialized
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: kubeadm_conf
+
+- name: Initialize Kubernetes master
+  command: >
+    kubeadm init
+    --apiserver-advertise-address={{ master_ip }}
+    --pod-network-cidr={{ pod_network_cidr }}
+    --service-cidr={{ service_cidr }}
+    --kubernetes-version={{ k8s_full_version }}
+  when: not kubeadm_conf.stat.exists
+  register: kubeadm_init
+
+- name: Create .kube directory
+  file:
+    path: /root/.kube
+    state: directory
+    mode: '0755'
+
+- name: Copy admin.conf to kubectl config
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    remote_src: yes
+    mode: '0600'
+
+- name: Generate join command
+  command: kubeadm token create --print-join-command
+  register: join_command_result
+  changed_when: false
+
+- name: Store join command as fact
+  set_fact:
+    kubeadm_join_command: "{{ join_command_result.stdout }}"
+
+- name: Wait for API server to be ready
+  command: kubectl get nodes
+  register: kubectl_result
+  retries: 10
+  delay: 10
+  until: kubectl_result.rc == 0
+  changed_when: false

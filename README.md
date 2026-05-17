@@ -6,8 +6,9 @@
 [![MetalLB](https://img.shields.io/badge/LB-MetalLB_L2-blue)](https://metallb.universe.tf/)
 [![Traefik](https://img.shields.io/badge/Ingress-Traefik-24A1C1?logo=traefikproxy&logoColor=white)](https://traefik.io/)
 [![Istio](https://img.shields.io/badge/Mesh-Istio-466BB0?logo=istio&logoColor=white)](https://istio.io/)
+[![Ansible](https://img.shields.io/badge/Automation-Ansible-EE0000?logo=ansible&logoColor=white)](https://www.ansible.com/)
 
-A production-style multi-cluster Kubernetes homelab running across **VMware VMs** and **bare-metal Mini PCs** on a `/23` network — complete with BGP networking, service mesh, distributed storage, TLS ingress, and local DNS.
+A production-style multi-cluster Kubernetes homelab running across **VMware VMs** and **bare-metal Mini PCs** on a `/23` network — complete with BGP networking, service mesh, distributed storage, TLS ingress, local DNS, and **fully automated provisioning via Ansible**.
 
 ---
 
@@ -45,8 +46,8 @@ A production-style multi-cluster Kubernetes homelab running across **VMware VMs*
 | Cluster | Platform | Nodes | CNI | Ingress | LB | Provisioning |
 |---------|----------|-------|-----|---------|-----|--------------|
 | k3s-lap | VMware (Dell Laptop) | 1 master + 2 workers | Flannel (host-gw) | Traefik (built-in) | MetalLB L2 | k3s installer |
-| k8s-lap | VMware (Dell Laptop) | 1 master + 2 workers | Calico BGP | Traefik (Helm) + nginx | MetalLB L2 | Kubespray |
-| k8s-mini | Bare Metal (Mini PCs) | 1 master + 2 workers | Calico BGP | Istio Gateway API | MetalLB L2 | Kubespray |
+| k8s-lap | VMware (Dell Laptop) | 1 master + 2 workers | Calico BGP | Traefik (Helm) + nginx | MetalLB L2 | Ansible (custom) |
+| k8s-mini | Bare Metal (Mini PCs) | 1 master + 2 workers | Calico BGP | Istio Gateway API | MetalLB L2 | Ansible (custom) |
 
 ---
 
@@ -64,7 +65,7 @@ A production-style multi-cluster Kubernetes homelab running across **VMware VMs*
 <tr><td>🔒 TLS</td><td>Let's Encrypt via Traefik ACME resolver</td></tr>
 <tr><td>📡 DNS</td><td>Pi-hole + Unbound (recursive), CoreDNS</td></tr>
 <tr><td>🖥️ Hypervisor</td><td>Proxmox, VMware Workstation</td></tr>
-<tr><td>⚙️ Automation</td><td>Ansible (Kubespray), ClusterShell (clush), Bash</td></tr>
+<tr><td>⚙️ Automation</td><td>Ansible (custom roles + Kubespray), ClusterShell (clush), Bash</td></tr>
 <tr><td>📦 Package Manager</td><td>Helm 3</td></tr>
 </table>
 
@@ -80,6 +81,20 @@ homelab/
 ├── calico+kube-proxy+metallb.md               # CNI compatibility guide
 ├── calico+kube-proxy-CNI-Troubleshooting.md   # Troubleshooting & recovery
 ├── Test Ingress.md                            # Ingress & DNS validation tests
+│
+├── ansible-main/                              # ⚡ Custom Ansible K8s installer
+│   ├── cluster-config.yml                     # Single config file for entire cluster
+│   ├── generate-inventory.py                  # Auto-generates inventory from config
+│   ├── setup.sh                               # One-time venv + Ansible setup
+│   ├── playbooks/
+│   │   ├── site.yml                           # Full orchestration (all phases)
+│   │   ├── 00-reset-cluster.yml               # Tear down existing cluster
+│   │   ├── 01-system-prep.yml → 09-longhorn.yml
+│   │   └── ...
+│   ├── roles/                                 # system-prep, containerd, k8s-packages,
+│   │   └── ...                                # k8s-master, k8s-worker, calico, metallb,
+│   │                                          # istio, longhorn, reset
+│   └── examples/                              # Ready-to-use cluster configs
 │
 ├── k3s-ubuntu24.10-fannel-metallb/
 │   └── k3s-installation.md                    # k3s + Flannel + MetalLB setup
@@ -135,6 +150,24 @@ pip install -r requirements.txt
 
 ansible-playbook -i inventory/mycluster/inventory.ini cluster.yml -b -v
 ```
+
+### k8s Cluster (Custom Ansible — Recommended)
+```bash
+cd ansible-main/
+vim cluster-config.yml          # Set IPs, components, toggles
+bash setup.sh                   # One-time: creates venv + installs Ansible
+source .venv/bin/activate
+python3 generate-inventory.py   # Auto-generates inventory from config
+ansible all -m ping             # Verify connectivity
+ansible-playbook playbooks/site.yml  # Full install: system → containerd → k8s → CNI → mesh → storage
+```
+
+**Features:**
+- Single `cluster-config.yml` drives everything — IPs, versions, optional components
+- Modular playbooks (run `site.yml` or individual phases like `06-calico.yml`)
+- 10 roles: system-prep, containerd, k8s-packages, k8s-master, k8s-worker, calico, metallb, istio, longhorn, reset
+- Toggle Istio & Longhorn on/off per cluster
+- `00-reset-cluster.yml` for clean tear-down and rebuild
 
 ### Traefik Ingress (Helm)
 ```bash

@@ -1,0 +1,35 @@
+---
+cluster_name: lap-k8s
+
+ssh_user: root
+ssh_password: toor
+
+masters:
+  - hostname: lap-k8s-master-01
+    ip: 192.168.0.150
+
+workers:
+  - hostname: lap-k8s-worker-01
+    ip: 192.168.0.151
+  - hostname: lap-k8s-worker-02
+    ip: 192.168.0.152
+
+k8s_version: "1.35"
+k8s_full_version: "v1.35.0"
+pod_network_cidr: "10.244.0.0/16"
+service_cidr: "10.96.0.0/12"
+pause_image: "registry.k8s.io/pause:3.10.1"
+
+components:
+  calico:
+    enabled: true
+    version: "v3.29.0"
+  metallb:
+    enabled: true
+    version: "v0.14.5"
+    ip_range: "192.168.0.160-192.168.0.199"
+  istio:
+    enabled: true
+    version: "1.28.2"
+  longhorn:
+    enabled: true

@@ -1,0 +1,16 @@
+---
+# Install Longhorn storage (skipped if install_longhorn is false)
+
+- name: Install Longhorn prerequisites on all nodes
+  hosts: k8s_cluster
+  tasks:
+    - name: Include Longhorn prereqs
+      include_role:
+        name: longhorn
+      when: install_longhorn | default(false) | bool
+
+- name: Install Longhorn via Helm
+  hosts: masters
+  tasks:
+    - include_tasks: ../roles/longhorn/tasks/install.yml
+      when: install_longhorn | default(false) | bool

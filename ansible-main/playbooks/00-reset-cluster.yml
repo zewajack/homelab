@@ -1,0 +1,13 @@
+---
+# Reset existing Kubernetes cluster (run ONLY to tear down)
+# Usage: ansible-playbook playbooks/00-reset-cluster.yml
+
+- name: Reset worker nodes
+  hosts: workers
+  roles:
+    - reset
+
+- name: Reset master node
+  hosts: masters
+  roles:
+    - reset

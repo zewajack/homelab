@@ -1,0 +1,6 @@
+---
+# Install Calico CNI
+- name: Install Calico
+  hosts: masters
+  roles:
+    - calico

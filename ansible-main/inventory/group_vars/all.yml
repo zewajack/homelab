@@ -1,0 +1,32 @@
+---
+# Auto-generated from cluster-config.yml — do not edit manually
+# Regenerate with: python3 generate-inventory.py
+
+# Kubernetes
+k8s_version: "1.35"
+k8s_full_version: "v1.35.0"
+pod_network_cidr: "10.244.0.0/16"
+service_cidr: "10.96.0.0/12"
+master_ip: "192.168.0.150"
+
+# Container runtime
+pause_image: "registry.k8s.io/pause:3.10.1"
+
+# Component toggles
+install_calico: true
+install_metallb: true
+install_istio: true
+install_longhorn: true
+
+# CNI - Calico
+calico_version: "v3.29.0"
+
+# MetalLB
+metallb_version: "v0.14.5"
+metallb_ip_range: "192.168.0.160-192.168.0.199"
+
+# Istio
+istio_version: "1.28.2"
+
+# Longhorn
+longhorn_namespace: "longhorn-system"

@@ -1,0 +1,6 @@
+---
+# Install MetalLB with L2 configuration
+- name: Install MetalLB
+  hosts: masters
+  roles:
+    - metallb
