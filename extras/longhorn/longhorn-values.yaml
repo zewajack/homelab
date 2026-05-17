@@ -1,0 +1,13 @@
+defaultSettings:
+  defaultReplicaCount: 2
+  defaultDataPath: /var/lib/longhorn
+  replicaSoftAntiAffinity: true
+  storageOverProvisioningPercentage: 200
+  storageMinimalAvailablePercentage: 10
+
+persistence:
+  defaultClass: true
+  defaultFsType: ext4
+
+longhornUI:
+  replicas: 1
