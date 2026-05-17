@@ -3,7 +3,8 @@
 ════════════════════════════════════════════════════════════
 🏠 b13 HomeLab Network Layout
 ════════════════════════════════════════════════════════════
-
+BSNL Router: <redacted>
+TPLink Router: <redacted>
 
 🌐 Domain
 ────────────────────────────────────────────────────────────
@@ -109,7 +110,7 @@ mini-k8s-worker-02.b13homelab.in  → 192.168.0.202
 
 ```bash
 sudo su -
-echo "root:toor" | sudo chpasswd && \
+echo "root:<redacted>" | sudo chpasswd && \
 sed -i 's/#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config && \
 sed -i 's/#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
 systemctl restart ssh
@@ -189,7 +190,7 @@ network:
           via: 192.168.0.1
       access-points:
         "TpLink":
-          password: "mclarenp1"
+          password: "<redacted>"
 EOF
 ```
 
@@ -218,7 +219,7 @@ systemctl enable --now NetworkManager
 
 ```bash
 nmcli device wifi list
-nmcli device wifi connect "TpLink" password "mclarenp1"
+nmcli device wifi connect "TpLink" password "<redacted>"
 ```
 
 ```bash
